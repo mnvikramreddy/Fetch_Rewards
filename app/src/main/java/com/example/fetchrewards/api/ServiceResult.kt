@@ -5,5 +5,5 @@ package com.example.fetchrewards.api
  * */
 sealed class ServiceResult<out T> {
     data class Success<out T>(val data: T): ServiceResult<T>()
-    data class Error<out T>(val message: String): ServiceResult<T>()
+    data class Error(val message: String): ServiceResult<Nothing>()
 }

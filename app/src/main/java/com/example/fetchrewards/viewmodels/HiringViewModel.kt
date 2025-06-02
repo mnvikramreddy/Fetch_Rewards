@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fetchrewards.api.HiringResponse
 import com.example.fetchrewards.api.ServiceResult
+import com.example.fetchrewards.database.entity.HiringItem
 import com.example.fetchrewards.repository.HiringRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.scopes.ActivityScoped
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,7 +56,25 @@ class HiringViewModel @Inject constructor(
             }
         }
     }
+
+    fun getItemDetails(itemId: Int): HiringItem? {
+        return _uiState.value.hiringList.find { it.id == itemId }
+    }
+
+    fun sortWith(type: String) {
+        val list = _uiState.value.hiringList
+        val sortedList = when (type.lowercase()) {
+            "name" -> list.sortedBy { it.name }
+            "id" -> list.sortedBy { it.id }
+            "listid" -> list.sortedBy { it.listId }
+            else -> list
+        }
+        _uiState.update {
+            it.copy(hiringList = sortedList)
+        }
+    }
 }
+
 
 /**
  * UI State object for the Screen
@@ -62,6 +82,6 @@ class HiringViewModel @Inject constructor(
  * */
 data class HiringListUiState(
     val isLoading: Boolean = false,
-    val hiringList: List<HiringResponse> = emptyList(),
+    val hiringList: List<HiringItem> = emptyList(),
     val errorMessage: String? = null
 )

@@ -1,5 +1,9 @@
 package com.example.fetchrewards.screens
 
+import android.graphics.drawable.shapes.Shape
+import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +21,20 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.ShapeDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -34,15 +45,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.fetchrewards.R
 import com.example.fetchrewards.api.HiringResponse
+import com.example.fetchrewards.database.entity.HiringItem
 import com.example.fetchrewards.ui.theme.FetchRewardsTheme
 import com.example.fetchrewards.viewmodels.HiringViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun HiringScreen(modifier: Modifier) {
+fun HiringScreen(
+    modifier: Modifier,
+    onNavigateToItem: (itemId: Int) -> Unit
+) {
     val viewModel: HiringViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val hiringList = uiState.hiringList
+    Log.d(" HIRING SCREEN VIEWMODEL", "${viewModel}")
     when {
         uiState.isLoading -> EmptyState(
             modifier, stringResource(R.string.loading)
@@ -60,7 +76,8 @@ fun HiringScreen(modifier: Modifier) {
                 modifier = modifier.padding(10.dp)
             ) {
                 Header()
-                ScrollToTopList(hiringList)
+                OrderButtons { viewModel.sortWith(it) }
+                ScrollToTopList(hiringList, onNavigateToItem)
             }
     }
 }
@@ -113,24 +130,87 @@ fun Header() {
     }
 }
 
+@Composable
+fun OrderButtons(
+    selectedOrder: (String) -> Unit
+) {
+    var selectedIndex by remember { mutableIntStateOf(0) }
+    val options = arrayListOf<String>("ListId", "Name", "Id")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(5.dp)) {
+            options.forEachIndexed { index, label ->
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = options.size,
+                    ),
+                    onClick = {
+                        selectedIndex = index
+                        selectedOrder(options[index])
+                    },
+                    selected = index == selectedIndex,
+                    label = { Text(label) }
+                )
+            }
+        }
+    }
+}
+
 /**
  * List with scroll to top button when list scrolled up
  * */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ScrollToTopList(hiringList: List<HiringResponse>) {
+private fun ScrollToTopList(
+    hiringList: List<HiringItem>,
+    onNavigateToItem: (itemId: Int) -> Unit = {}
+) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 0 }
     }
-
+//
+//    val grouped: Map<String, List<HiringItem>> = hiringList.groupBy {
+//       val start =  (it.id - 1)/100 *100 +1
+//        val end = start+99
+//        "$start - $end"
+//    }
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState
         ) {
-            items(items = hiringList) { item ->
-                ListItem(item)
+            items(items = hiringList, key = { it.id }) { item ->
+                ListItem(item) {
+                    onNavigateToItem(item.id)
+                }/*
+            grouped.forEach { (header, groupedList) ->
+                stickyHeader {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = ShapeDefaults.Medium
+                            )
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(5.dp),
+                            text = header
+                        )
+                    }
+                }
+                items(items = groupedList, key = { it.id }) { item ->
+                    ListItem(item) {
+                        onNavigateToItem(item.id)
+                    }
+                }
+            }
+*/
+
             }
         }
         if (showScrollToTop) {
@@ -153,8 +233,9 @@ private fun ScrollToTopList(hiringList: List<HiringResponse>) {
 
 
 @Composable
-fun ListItem(item: HiringResponse) {
+fun ListItem(item: HiringItem, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxSize()
             .padding(5.dp)
@@ -173,7 +254,7 @@ fun ListItem(item: HiringResponse) {
                 text = item.listId.toString()
             )
             Text(
-                text = item.name
+                text = item.name.toString()
             )
             Text(
                 text = item.id.toString()
@@ -193,8 +274,19 @@ fun GreetingPreview() {
 
 @Preview(showBackground = true)
 @Composable
+fun ButtonOrderPreview() {
+    FetchRewardsTheme {
+        OrderButtons { }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
 fun HiringScreenPreview() {
     FetchRewardsTheme {
-        HiringScreen(modifier = Modifier)
+        HiringScreen(
+            modifier = Modifier,
+            onNavigateToItem = { }
+        )
     }
 }
